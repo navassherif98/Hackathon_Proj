@@ -9,98 +9,31 @@ import dash_bootstrap_components as dbc
 import base64
 import io
 
-app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
+#connect to main app.py file
+from app import app
 
-LOGO ="https://images.plot.ly/logo/new-branding/plotly-logomark.png"
+from ML_algorithms import LinearReg,DecisionTreeReg,KNNReg
 
-uploadfile = dbc.Row([dbc.Col(dcc.Upload(id='upload-data',children=html.Div(['Drag and Drop or ',html.A('Select Files')]),
-                                         style={
-                                             'width':'400px',
-                                             'height': '40px',
-                                             'lineHeight': '40px',
-                                             'borderWidth': '1px',
-                                             'borderStyle': 'dashed',
-                                             'borderRadius': '5px',
-                                             'textAlign': 'center',
-                                             'background-color':'white'
-                                         },
-                                         # Allow multiple files to be uploaded
-                                         multiple=True),align="center",),
-                      dcc.Store(id='output-data-upload'),
-                      dcc.Store(id='pass_df'),
-                      ],style={'margin-right':'-60px','margin-left':'15px'})
+#connect to our pages
+from pages import NGraphs,MLGraphs , navbar
 
-navbar = dbc.Navbar(
-    dbc.Container(
-        [
-            html.A(
-                # Use row and col to control vertical alignment of logo / brand
-                dbc.Row(
-                    [
-                        dbc.Col(html.Img(src=LOGO, height="30px")),
-                        dbc.Col(dbc.NavbarBrand("Dash 4U", className="ms-2")),
-                    ],
-                    align="center",
-                    className="g-0",
-                ),
-                href="https://www.iqvia.com/",
-                style={"textDecoration": "none"},
-            ),
-            uploadfile
-        ]
-    ),
-    color="dark",
-    dark=True,style={'width': '-webkit-fill-available'}
-)
+nav = navbar.Navbar()
 
 app.layout = html.Div([
-    dbc.Row(navbar,style={'padding-bottom':'20px'}),
-    dbc.Row([
-        dbc.Col([
-            dbc.Row([
-                dbc.Col([
-                    html.Div("Select Graph Type : ",style={'padding':'5px'}),
-                    dcc.Dropdown(['Scatter','Line','Horizontal Bar', 'Vertical Bar','Box Plot','Tree Map','Histogram','Vertical Stacked Bar','Horizontal Stacked Bar'  ], 'Box Plot' , id='graph_dropdown')
-                ]),
-                dbc.Col([
-                    html.Div("Select X-axis ",style={'padding':'5px'}),
-                    dcc.Dropdown(id='df_x')
-                ]),
-                dbc.Col([
-                    html.Div("Select Y-axis ",style={'padding':'5px'}),
-                    dcc.Dropdown(id='df_y')
-                ]),
-            ],style={'margin-right':'15px','margin-left':'15px'}),
-
-            dbc.Row([
-                dbc.Col(html.Div("Filter by : "),width=2),
-            ],style={'margin-right':'15px','margin-left':'15px','padding':'10px'}),
-            dbc.Row([
-                dbc.Col(dcc.Dropdown(id='df_fltr'),width=3),
-                dbc.Col(dcc.Dropdown(id='df_fltr_colmn',multi=True),width=9)
-            ],style={'margin-right':'15px','margin-left':'15px'}),
-            dbc.Row([
-                dbc.Col(dcc.Graph('update-graph', figure={},clickData=None, hoverData=None,))
-            ])
-        ],width=8),
-
-        dbc.Col([
-            dbc.Row(dbc.Col(html.Div("Pie Chart",style={'textAlign': 'center','padding':'5px'}))),
-            dbc.Row([
-                dbc.Col([
-                    html.Div("Select Categories ",style={'padding':'5px'}),
-                    dcc.Dropdown(id='pie_catg')
-                ]),
-                dbc.Col([
-                    html.Div("Select Numeric",style={'padding':'5px'}),
-                    dcc.Dropdown(id='pie_num')
-                ]),
-            ]),
-            dbc.Col(dcc.Graph('update-piegraph',figure={}))
-        ],width=4)
-    ],style={'margin-right':'15px','margin-left':'15px'})
+    dcc.Location(id='url',refresh=False),
+    dbc.Row(nav),
+    html.Div(id='page-content',children=[])
 ])
 
+@app.callback(Output('page-content','children'),
+              Input('url','pathname'))
+def display_page(pathname):
+    if pathname == '/MLGraphs':
+        return MLGraphs.layout
+    elif pathname == '/':
+        return  NGraphs.layout
+    else:
+        return "404 Page Error ! please choose a page"
 def parse_contents(contents, filename):
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
@@ -139,6 +72,21 @@ def update_filter(pds):
     except Exception as e:
         print(e)
         return [],[],[],[],[],[]
+
+@app.callback([Output('pass_df1','data'),Output('df_dv', 'options'),Output('df_iv', 'options')],
+              Input('output-data-upload', 'data')
+              )
+def update_mlfilter(pds):
+    try :
+        df = pd.read_json(pds,orient="split")
+        catg = df.select_dtypes(exclude=np.number)
+        num = df.select_dtypes(include=np.number)
+        collist=df.columns.unique()
+        return pds, collist,collist
+    except Exception as e:
+        print(e)
+        return [],[],[]
+
 
 @app.callback(Output('update-graph', 'figure'),Output('df_fltr_colmn','options'),
               Input('pass_df', 'data'),
@@ -233,6 +181,33 @@ def update_piegraph(pds,df_x,df_y,hov_data,df_fltr,df_fltr_val,pie_catg,pie_num)
     except Exception as e:
         print(e)
         return {}
+
+@app.callback(Output('ml-graph','figure'),Output('rsq','children'),
+              Output('intercept','children'),Output('slope','children'),
+              Output('result','children'),
+              Input('pass_df1', 'data'),
+              Input('df_iv','value'),
+              Input('df_dv','value'),
+              Input('df_inp','value'),
+              Input('df_model','value'))
+def mlgraph(pds,df_iv,df_dv,df_inp,df_model):
+    try :
+        df1 = pd.read_json(pds,orient="split")
+
+        if df_model=="Linear Regression" :
+            fig,r_sqr,intercept,slope,result=LinearReg(df1,df_dv,df_iv,df_inp)
+            return fig , f'R Squre : {r_sqr}' , f'Intercept : {intercept}' , f'Slope : {slope}', f'Predicted Output : {result}'
+        elif(df_model =='Decision Tree Regression'):
+            fig,r_sqr,result=DecisionTreeReg(df1,df_dv,df_iv,df_inp)
+            return fig , f'R Squre : {r_sqr}' , [] , [], f'Predicted Output : {result}'
+        else:
+            fig,r_sqr,result=KNNReg(df1,df_dv,df_iv,df_inp)
+            return fig , f'R Squre : {r_sqr}' , [] , [], f'Predicted Output : {result}'
+
+
+    except Exception as e:
+        print(e)
+        return {},[],[],[],[]
 
 
 if __name__ == '__main__':
