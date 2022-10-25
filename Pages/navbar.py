@@ -19,7 +19,9 @@ def Navbar():
                                              multiple=True),align="center",),
                           dcc.Store(id='output-data-upload'),
                           dcc.Store(id='pass_df'),
-                          dcc.Store(id='pass_df1')
+                          dcc.Store(id='pass_df1'),
+                          dcc.Store(id='pass_df2'),
+                          dcc.Store(id='pre_processed_df')
                           ],style={'margin-right':'-60px','margin-left':'15px'})
 
     layout = dbc.Navbar(
@@ -29,7 +31,7 @@ def Navbar():
                     dbc.Row(
                         [
                             dbc.Col(html.Img(src=LOGO, height="30px")),
-                            dbc.Col(dbc.NavbarBrand("Dash 4U", className="ms-2"),style={'padding-left':'5px'}),
+                            dbc.Col(dbc.NavbarBrand("Intelli Dash", className="ms-2"),style={'padding-left':'5px'}),
                         ],
                         align="center",
                         className="g-0",
@@ -39,8 +41,9 @@ def Navbar():
                 ),
                 dbc.NavbarSimple(
                     children=[
-                        dbc.NavItem(dbc.NavLink("NGraphs", href='/')),
-                        dbc.NavItem(dbc.NavLink("MLGraphs", href='/MLGraphs')),
+                        dbc.NavItem(dbc.NavLink("EDA", href='/')),
+                        dbc.NavItem(dbc.NavLink("Dash_4u", href='/Dash4u')),
+                        dbc.NavItem(dbc.NavLink("ML_Graphs", href='/MLGraphs')),
                     ],
                     color="dark",
                     dark=True,
